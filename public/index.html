@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoiceBridge - Real Time Video Translator</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+    <div id="login-screen" class="screen active">
+        <div class="card">
+            <h2>Welcome to VoiceBridge</h2>
+            <p>Login or Signup to continue</p>
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="handleLogin()">Login / Signup</button>
+        </div>
+    </div>
+
+    <div id="setup-screen" class="screen">
+        <div class="card">
+            <h2>Call Setup</h2>
+            <input type="text" id="room-id" placeholder="Enter Room Name (e.g. room1)">
+            
+            <div class="lang-select">
+                <label>I Speak (My Language):</label>
+                <select id="my-lang">
+                    <option value="en-US">English</option>
+                    <option value="es-ES">Spanish</option>
+                    <option value="fr-FR">French</option>
+                    <option value="hi-IN">Hindi</option>
+                    <option value="de-DE">German</option>
+                    <option value="ja-JP">Japanese</option>
+                </select>
+            </div>
+
+            <div class="lang-select">
+                <label>I Want to Hear (Target Language):</label>
+                <select id="listen-lang">
+                    <option value="en-US">English</option>
+                    <option value="es-ES">Spanish</option>
+                    <option value="fr-FR">French</option>
+                    <option value="hi-IN">Hindi</option>
+                    <option value="de-DE">German</option>
+                    <option value="ja-JP">Japanese</option>
+                </select>
+            </div>
+
+            <button onclick="startCall()">Join Video Call</button>
+        </div>
+    </div>
+
+    <div id="call-screen" class="screen">
+        <div class="header">
+            <h3>Connected: <span id="room-display"></span></h3>
+        </div>
+
+        <div class="video-grid">
+            <div class="video-wrapper">
+                <video id="local-video" autoplay muted playsinline></video>
+                <span class="label">You</span>
+            </div>
+            <div class="video-wrapper">
+                <video id="remote-video" autoplay playsinline></video>
+                <span class="label">Partner</span>
+            </div>
+        </div>
+
+        <div id="subtitle-container">
+            <p id="subtitle-text">Waiting for speech...</p>
+        </div>
+
+        <div class="controls">
+            <button onclick="toggleMute()" id="mute-btn" class="btn-control">🎤 Mute</button>
+            <button onclick="toggleSubtitles()" id="cc-btn" class="btn-control active">📝 CC On</button>
+            <button onclick="endCall()" class="btn-control btn-danger">📞 End</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

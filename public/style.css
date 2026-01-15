@@ -1,0 +1,122 @@
+/* public/style.css */
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #121212;
+    color: #fff;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.screen {
+    display: none;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.screen.active {
+    display: flex;
+}
+
+.card {
+    background: #1e1e1e;
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    width: 300px;
+    text-align: center;
+}
+
+input, select {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+    border: none;
+    background: #333;
+    color: white;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+button:hover { background: #0056b3; }
+
+/* Video Grid */
+.video-grid {
+    display: flex;
+    gap: 20px;
+    margin: 20px;
+    width: 90%;
+    max-width: 1000px;
+    justify-content: center;
+}
+
+.video-wrapper {
+    position: relative;
+    width: 45%;
+    aspect-ratio: 16/9;
+    background: black;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.label {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.6);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.8rem;
+}
+
+/* Subtitles */
+#subtitle-container {
+    height: 80px;
+    width: 80%;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.7);
+    border-radius: 10px;
+    margin-bottom: 20px;
+    padding: 10px;
+}
+
+#subtitle-text {
+    font-size: 1.2rem;
+    color: #ffeb3b; /* Yellow text for visibility */
+    transition: opacity 0.3s;
+}
+
+.controls {
+    display: flex;
+    gap: 15px;
+}
+
+.btn-control { width: auto; padding: 10px 20px; }
+.btn-danger { background: #dc3545; }
+.btn-control.active { border: 2px solid #fff; } /* Setup for toggle visual */
