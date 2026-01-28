@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VoiceBridge - Real Time Video Translator</title>
+    <title>Vingo AI - Real Time Video Translator</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -11,11 +11,11 @@
 
     <div id="login-screen" class="screen active">
         <div class="card">
-            <h2>Welcome to VoiceBridge</h2>
-            <p>Login or Signup to continue</p>
+            <h2>Welcome to Vingo AI</h2>
+            <p>Login to continue</p>
             <input type="text" id="username" placeholder="Username">
             <input type="password" id="password" placeholder="Password">
-            <button onclick="handleLogin()">Login / Signup</button>
+            <button onclick="handleLogin()">Login</button>
         </div>
     </div>
 
@@ -74,7 +74,13 @@
 
         <div class="controls">
             <button onclick="toggleMute()" id="mute-btn" class="btn-control">🎤 Mute</button>
+            
+            <button onclick="toggleVideo()" id="video-btn" class="btn-control">📷 Stop Video</button>
+            
             <button onclick="toggleSubtitles()" id="cc-btn" class="btn-control active">📝 CC On</button>
+            
+            <button onclick="handleRecording()" id="record-btn" class="btn-control" style="background-color: #ff9800;">⏺️ Record</button>
+            
             <button onclick="endCall()" class="btn-control btn-danger">📞 End</button>
         </div>
     </div>

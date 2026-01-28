@@ -1,4 +1,3 @@
-/* public/script.js */
 const socket = io();
 
 // State Variables
@@ -10,21 +9,21 @@ let listenLang = 'en-US';
 let roomId = '';
 let subtitlesOn = true;
 let isMuted = false;
+let isVideoOff = false; // Video State
+let mediaRecorder;      // Recording State
+let recordedChunks = [];
+let isRecording = false;
 
-// WebRTC Configuration (STUN servers allow connection through NATs)
+// WebRTC Config
 const config = {
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
 };
 
-// --- NAVIGATION FUNCTIONS ---
-
+// --- NAVIGATION ---
 function handleLogin() {
     const user = document.getElementById('username').value;
-    if(user) {
-        switchScreen('login-screen', 'setup-screen');
-    } else {
-        alert("Please enter a username");
-    }
+    if(user) switchScreen('login-screen', 'setup-screen');
+    else alert("Please enter a username");
 }
 
 function switchScreen(fromId, toId) {
@@ -33,7 +32,6 @@ function switchScreen(fromId, toId) {
 }
 
 // --- CALL SETUP ---
-
 async function startCall() {
     roomId = document.getElementById('room-id').value;
     myLang = document.getElementById('my-lang').value;
@@ -44,24 +42,20 @@ async function startCall() {
     switchScreen('setup-screen', 'call-screen');
     document.getElementById('room-display').innerText = roomId;
 
-    // 1. Get Media (Video/Audio)
     try {
+        // Request Camera & Mic
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         document.getElementById('local-video').srcObject = localStream;
 
-        // 2. Initialize Speech Recognition
         initSpeechRecognition();
-
-        // 3. Connect to Room
         socket.emit('join-room', roomId, socket.id);
     } catch (err) {
-        console.error("Media Error:", err);
-        alert("Could not access camera/mic. Ensure you are on HTTPS or localhost.");
+        console.error("Media Access Error:", err);
+        alert("Camera/Mic access denied! Please check browser permissions.");
     }
 }
 
-// --- WEBRTC LOGIC (Standard Peer Connection) ---
-
+// --- WEBRTC LOGIC ---
 socket.on('user-connected', async (userId) => {
     createPeerConnection();
     const offer = await peerConnection.createOffer();
@@ -92,9 +86,7 @@ function createPeerConnection() {
     peerConnection.ontrack = event => {
         const remoteVid = document.getElementById('remote-video');
         remoteVid.srcObject = event.streams[0];
-        // IMPORTANT: We partly mute the remote video so we hear the TRANSLATION, not the original voice
-        // But some users prefer hearing both (ducking). For MVP, we keep original audio low volume.
-        remoteVid.volume = 0.1; 
+        remoteVid.volume = 0.1; // Low volume for original voice
     };
 
     peerConnection.onicecandidate = event => {
@@ -102,11 +94,13 @@ function createPeerConnection() {
     };
 }
 
-// --- SPEECH RECOGNITION (Talk -> Text) ---
-
+// --- SPEECH & TRANSLATION ---
 function initSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return alert("Browser not supported. Use Chrome/Edge.");
+    if (!SpeechRecognition) {
+        alert("Your browser does not support Speech API. Please use Google Chrome.");
+        return;
+    }
 
     recognition = new SpeechRecognition();
     recognition.lang = myLang; 
@@ -117,62 +111,57 @@ function initSpeechRecognition() {
         const lastResult = event.results.length - 1;
         const text = event.results[lastResult][0].transcript;
         
-        console.log(`Spoken (${myLang}):`, text);
-
-        // Send to partner
         socket.emit('speak-data', {
             roomId: roomId,
             text: text,
             sourceLang: myLang
         });
     };
-
     recognition.start();
 }
 
-// --- TRANSLATION & TTS (Receive -> Translate -> Speak) ---
-
 socket.on('receive-speak-data', async (data) => {
-    // 1. Translate
     const translatedText = await translateText(data.text, data.sourceLang, listenLang);
     
-    // 2. Show Subtitles (If enabled)
-    const subtitleText = document.getElementById('subtitle-text');
-    subtitleText.innerText = translatedText;
-    subtitleText.style.opacity = subtitlesOn ? "1" : "0";
+    // Show Subtitles
+    if (subtitlesOn) {
+        const subtitleText = document.getElementById('subtitle-text');
+        subtitleText.innerText = translatedText;
+        subtitleText.style.opacity = "1";
+        setTimeout(() => { subtitleText.style.opacity = "0"; }, 6000);
+    }
 
-    // 3. Speak (TTS)
+    // Speak Audio
     speakText(translatedText, listenLang);
 });
 
-// Mock Translation function (Uses MyMemory API)
+// --- TRANSLATION FUNCTION (HTTPS FIXED) ---
 async function translateText(text, source, target) {
     const srcCode = source.split('-')[0];
     const targetCode = target.split('-')[0];
     if(srcCode === targetCode) return text;
 
     try {
+        // HTTPS LINK HERE
         const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${srcCode}|${targetCode}`);
         const data = await res.json();
         return data.responseData.translatedText;
     } catch (e) {
-        console.error(e);
+        console.error("Translation Error:", e);
         return text; 
     }
 }
 
 function speakText(text, lang) {
-    // Cancel previous speech to avoid overlapping
     window.speechSynthesis.cancel();
-    
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
-    utterance.rate = 1; // Speed
     window.speechSynthesis.speak(utterance);
 }
 
-// --- CONTROLS ---
+// --- CONTROLS LOGIC ---
 
+// 1. Mute Audio
 function toggleMute() {
     isMuted = !isMuted;
     localStream.getAudioTracks()[0].enabled = !isMuted;
@@ -185,20 +174,79 @@ function toggleMute() {
     else recognition.start();
 }
 
+// 2. Stop Video (NEW)
+function toggleVideo() {
+    isVideoOff = !isVideoOff;
+    localStream.getVideoTracks()[0].enabled = !isVideoOff;
+    
+    const btn = document.getElementById('video-btn');
+    btn.innerText = isVideoOff ? "📷 Start Video" : "📷 Stop Video";
+    btn.style.background = isVideoOff ? "red" : "#007bff";
+}
+
+// 3. Toggle CC
 function toggleSubtitles() {
     subtitlesOn = !subtitlesOn;
     const btn = document.getElementById('cc-btn');
-    const subText = document.getElementById('subtitle-text');
+    btn.innerText = subtitlesOn ? "📝 CC On" : "CC Off";
+    btn.style.background = subtitlesOn ? "#007bff" : "#555";
+}
 
-    if(subtitlesOn) {
-        btn.innerText = "📝 CC On";
-        btn.style.background = "#007bff";
-        subText.style.opacity = "1";
+// 4. Screen Recording (NEW)
+async function handleRecording() {
+    const btn = document.getElementById('record-btn');
+
+    if (!isRecording) {
+        // START RECORDING
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({ 
+                video: { mediaSource: "screen" },
+                audio: true 
+            });
+
+            mediaRecorder = new MediaRecorder(stream);
+            recordedChunks = [];
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) recordedChunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = saveRecording;
+
+            mediaRecorder.start();
+            isRecording = true;
+            btn.innerText = "⏹️ Stop Rec";
+            btn.style.background = "red";
+            
+            // Stop if user uses browser 'Stop Sharing' floating bar
+            stream.getVideoTracks()[0].onended = () => {
+                if(isRecording) handleRecording();
+            };
+
+        } catch (err) {
+            console.error("Recording error: ", err);
+        }
     } else {
-        btn.innerText = "CC Off";
-        btn.style.background = "#555";
-        subText.style.opacity = "0";
+        // STOP RECORDING
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        isRecording = false;
+        btn.innerText = "⏺️ Record";
+        btn.style.background = "#ff9800";
     }
+}
+
+function saveRecording() {
+    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = `vingo-recording-${Date.now()}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    alert("Recording saved to your device!");
 }
 
 function endCall() {
