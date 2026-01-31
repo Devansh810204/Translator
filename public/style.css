@@ -1,123 +1,194 @@
-/* public/style.css */
+:root {
+    --primary: #2ed573;
+    --glass: rgba(255, 255, 255, 0.1);
+    --dark: #000;
+}
+
 body {
-    font-family: 'Segoe UI', sans-serif;
-    background: #121212;
-    color: white;
+    font-family: 'Poppins', sans-serif;
     margin: 0;
-    height: 100vh;
+    height: 100dvh; /* Fixes Android address bar issue */
     overflow: hidden;
+    color: white;
+    background: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop') no-repeat center center/cover;
+}
+
+/* Dark overlay for readability */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.65);
+    z-index: -1;
 }
 
 .screen {
     display: none;
-    width: 100%;
-    height: 100%;
     flex-direction: column;
+    height: 100%;
+    width: 100%;
 }
 .screen.active { display: flex; }
 
-/* Centered Cards for Login/Setup */
+/* --- CARD STYLES --- */
 #login-screen, #setup-screen {
     align-items: center;
     justify-content: center;
+    padding: 20px;
 }
 
-.card {
-    background: #1e1e1e;
-    padding: 30px;
-    border-radius: 15px;
+.glass-card {
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    padding: 40px 30px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.2);
+    box-shadow: 0 8px 32px 0 rgba(0,0,0,0.37);
     text-align: center;
-    width: 300px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-}
-
-input, select, button {
     width: 100%;
-    padding: 12px;
-    margin: 10px 0;
-    border-radius: 5px;
-    border: none;
-    box-sizing: border-box;
+    max-width: 350px;
 }
 
-input, select { background: #333; color: white; }
-button { background: #007bff; color: white; font-weight: bold; cursor: pointer; }
-button:hover { background: #0056b3; }
+h1 { margin: 0; font-weight: 600; }
+p { color: #ddd; margin-bottom: 20px; }
 
-/* Top Bar */
+input, select {
+    width: 100%;
+    padding: 15px;
+    margin: 10px 0 20px 0;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.3);
+    color: white;
+    font-size: 1rem;
+    box-sizing: border-box; 
+}
+option { background: #333; }
+
+button {
+    width: 100%;
+    padding: 15px;
+    border-radius: 10px;
+    border: none;
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: 0.2s;
+}
+button:active { transform: scale(0.98); }
+
+/* --- CALL INTERFACE --- */
 .top-bar {
-    background: #1e1e1e;
-    padding: 10px 20px;
+    padding: 15px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: 60px;
+    background: rgba(0,0,0,0.4);
 }
+.settings-btn { width: auto; padding: 8px 16px; font-size: 0.9rem; background: rgba(255,255,255,0.1); }
 
-.live-settings select {
-    width: auto;
-    padding: 5px;
-    margin: 0 5px;
-    background: #333;
+/* Settings Popup */
+.settings-panel {
+    position: absolute;
+    top: 60px; right: 20px;
+    background: #222;
+    padding: 20px;
+    border-radius: 15px;
+    z-index: 100;
+    width: 250px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    border: 1px solid #444;
 }
+.settings-panel.hidden { display: none; }
 
-/* Video Grid (Multi-User) */
+/* Video Grid */
 #video-grid {
-    flex: 1;
+    flex: 1; /* Fills remaining space */
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    align-items: center;
-    padding: 20px;
-    gap: 15px;
+    align-content: flex-start; /* Pushes videos to top */
+    gap: 10px;
+    padding: 10px;
     overflow-y: auto;
 }
 
 .video-wrapper {
     position: relative;
-    width: 400px;
-    max-width: 45%;
+    width: 100%;
+    max-width: 500px;
     aspect-ratio: 16/9;
     background: black;
-    border-radius: 10px;
+    border-radius: 15px;
     overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+/* On Desktop, show 2 videos side by side */
+@media (min-width: 700px) {
+    .video-wrapper { width: 45%; }
 }
 
 video { width: 100%; height: 100%; object-fit: cover; }
 
 .label {
     position: absolute;
-    bottom: 10px;
-    left: 10px;
+    bottom: 10px; left: 10px;
     background: rgba(0,0,0,0.6);
     padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 0.9rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
 }
 
 /* Subtitles */
 #subtitle-container {
-    height: 60px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: rgba(0,0,0,0.8);
-    position: absolute;
-    bottom: 80px;
-    width: 100%;
+    background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
     text-align: center;
+    padding: 10px 20px;
+    min-height: 50px;
+    position: absolute;
+    bottom: 80px; /* Above controls */
+    width: 100%;
+    pointer-events: none; /* Let clicks pass through */
+    box-sizing: border-box;
 }
-#subtitle-text { font-size: 1.2rem; color: #ffeb3b; margin: 0; transition: opacity 0.3s;}
 
-/* Controls */
-.controls {
-    height: 70px;
-    background: #1e1e1e;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 15px;
+#subtitle-text {
+    font-size: 1.1rem;
+    color: #ffd700;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    margin: 0;
+    transition: opacity 0.3s;
 }
-.btn-control { width: auto; padding: 10px 20px; }
-.btn-danger { background: #dc3545; }
+
+/* Bottom Controls */
+.controls-bar {
+    height: 80px;
+    background: #111;
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    z-index: 50;
+    padding-bottom: 10px; /* Safe area for modern phones */
+}
+
+.icon-btn {
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    background: #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    padding: 0;
+}
+.icon-btn.active { background: var(--primary); }
+.icon-btn.danger { background: #ff4757; }

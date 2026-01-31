@@ -2,30 +2,30 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vingo AI - Real Time Video Translator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vingo AI - Global Connect</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
-    <link rel="icon" href="data:,">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <div id="login-screen" class="screen active">
-        <div class="card">
-            <h1>Vingo AI</h1>
-            <p>Real-time Translation & Video</p>
+        <div class="glass-card">
+            <h1>Vingo AI 🌍</h1>
+            <p>Connect. Speak. Understand.</p>
             <input type="text" id="username" placeholder="Enter your name">
-            <button onclick="goToSetup()">Continue</button>
+            <button onclick="goToSetup()">Start Experience</button>
         </div>
     </div>
 
     <div id="setup-screen" class="screen">
-        <div class="card">
-            <h2>Call Setup</h2>
-            <input type="text" id="room-id" placeholder="Enter Room Code (e.g. 101)">
+        <div class="glass-card">
+            <h2>Room Setup</h2>
+            <input type="text" id="room-id" placeholder="Create Room Code (e.g. 101)">
             
             <div class="lang-group">
-                <label>I Speak:</label>
+                <label>🗣️ I Speak:</label>
                 <select id="setup-my-lang">
                     <option value="en-US">English</option>
                     <option value="hi-IN">Hindi</option>
@@ -37,7 +37,7 @@
             </div>
 
             <div class="lang-group">
-                <label>I Want to Hear:</label>
+                <label>👂 I Want to Hear:</label>
                 <select id="setup-listen-lang">
                     <option value="en-US">English</option>
                     <option value="hi-IN">Hindi</option>
@@ -55,49 +55,57 @@
     <div id="call-screen" class="screen">
         
         <div class="top-bar">
-            <div class="room-info">
-                Room: <span id="display-room-id" style="font-weight:bold; color:#ffeb3b;"></span>
-            </div>
-            
-            <div class="live-settings">
-                <span>My Lang:</span>
-                <select id="in-call-my-lang" onchange="updateLanguages()">
-                    <option value="en-US">English</option>
-                    <option value="hi-IN">Hindi</option>
-                    <option value="es-ES">Spanish</option>
-                    <option value="fr-FR">French</option>
-                    <option value="ja-JP">Japanese</option>
-                    <option value="de-DE">German</option>
-                </select>
+            <div class="room-tag">Room: <span id="display-room-id">...</span></div>
+            <button class="settings-btn" onclick="toggleSettings()">⚙️ Language</button>
+        </div>
 
-                <span>Hear In:</span>
-                <select id="in-call-listen-lang" onchange="updateLanguages()">
-                    <option value="en-US">English</option>
-                    <option value="hi-IN">Hindi</option>
-                    <option value="es-ES">Spanish</option>
-                    <option value="fr-FR">French</option>
-                    <option value="ja-JP">Japanese</option>
-                    <option value="de-DE">German</option>
-                </select>
-            </div>
+        <div id="settings-panel" class="settings-panel hidden">
+            <h3>Change Language</h3>
+            <label>My Language:</label>
+            <select id="in-call-my-lang" onchange="updateLanguages()">
+                <option value="en-US">English</option>
+                <option value="hi-IN">Hindi</option>
+                <option value="es-ES">Spanish</option>
+                <option value="fr-FR">French</option>
+                <option value="ja-JP">Japanese</option>
+                <option value="de-DE">German</option>
+            </select>
+            <label>Hear In:</label>
+            <select id="in-call-listen-lang" onchange="updateLanguages()">
+                <option value="en-US">English</option>
+                <option value="hi-IN">Hindi</option>
+                <option value="es-ES">Spanish</option>
+                <option value="fr-FR">French</option>
+                <option value="ja-JP">Japanese</option>
+                <option value="de-DE">German</option>
+            </select>
+            <button onclick="toggleSettings()" style="margin-top:10px; background: #ff4757;">Close</button>
         </div>
 
         <div id="video-grid">
             <div class="video-wrapper" id="local-wrapper">
                 <video id="local-video" autoplay muted playsinline></video>
-                <span class="label" id="local-label">You</span>
+                <span class="label">You</span>
             </div>
             </div>
 
         <div id="subtitle-container">
-            <p id="subtitle-text">Captions enabled...</p>
+            <p id="subtitle-text">Waiting for Captions...</p>
         </div>
 
-        <div class="controls">
-            <button onclick="toggleMute()" id="mute-btn" class="btn-control">🎤 Mute</button>
-            <button onclick="toggleVideo()" id="video-btn" class="btn-control">📷 Stop Video</button>
-            <button onclick="toggleSubtitles()" id="cc-btn" class="btn-control active">📝 CC On</button>
-            <button onclick="leaveCall()" class="btn-control btn-danger">📞 Leave</button>
+        <div class="controls-bar">
+            <button onclick="toggleMute()" id="mute-btn" class="icon-btn">
+                <span>🎤</span>
+            </button>
+            <button onclick="toggleVideo()" id="video-btn" class="icon-btn">
+                <span>📷</span>
+            </button>
+            <button onclick="toggleSubtitles()" id="cc-btn" class="icon-btn active">
+                <span>📝</span>
+            </button>
+            <button onclick="leaveCall()" class="icon-btn danger">
+                <span>📞</span>
+            </button>
         </div>
     </div>
 

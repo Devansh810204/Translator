@@ -1,7 +1,6 @@
-/* public/script.js */
 const socket = io();
 
-// --- STATE VARIABLES ---
+// Variables
 let localStream;
 let myUsername = "";
 let roomId = "";
@@ -11,194 +10,170 @@ let recognition;
 let subtitlesOn = true;
 let isMuted = false;
 let isVideoOff = false;
+const peers = {};
 
-// Store connections for multiple users: { socketId: RTCPeerConnection }
-const peers = {}; 
+const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
-const config = {
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-};
+// --- 1. SETUP ---
 
-// --- 1. NAVIGATION & SETUP ---
 function goToSetup() {
     const nameInput = document.getElementById('username');
     if (!nameInput.value) return alert("Please enter your name");
     myUsername = nameInput.value;
-    
-    document.getElementById('login-screen').classList.remove('active');
-    document.getElementById('setup-screen').classList.add('active');
+    switchScreen('login-screen', 'setup-screen');
+}
+
+function switchScreen(from, to) {
+    document.getElementById(from).classList.remove('active');
+    document.getElementById(to).classList.add('active');
+}
+
+function toggleSettings() {
+    const panel = document.getElementById('settings-panel');
+    panel.classList.toggle('hidden');
 }
 
 async function joinRoom() {
     roomId = document.getElementById('room-id').value;
     if (!roomId) return alert("Enter Room Code");
 
-    // Sync initial settings to in-call dropdowns
+    // Get Languages
     myLang = document.getElementById('setup-my-lang').value;
     listenLang = document.getElementById('setup-listen-lang').value;
     
+    // Sync to in-call menus
     document.getElementById('in-call-my-lang').value = myLang;
     document.getElementById('in-call-listen-lang').value = listenLang;
 
-    // UI Update
-    document.getElementById('setup-screen').classList.remove('active');
-    document.getElementById('call-screen').classList.add('active');
+    // UI Change
+    switchScreen('setup-screen', 'call-screen');
     document.getElementById('display-room-id').innerText = roomId;
-    document.getElementById('local-label').innerText = myUsername + " (You)";
+    document.querySelector('#local-wrapper .label').innerText = "You";
 
-    // Start Media & Socket
-    await startMedia();
-    initSpeechRecognition();
-    
-    // Join logic
-    socket.emit('join-room', roomId, myUsername, myLang);
-}
-
-async function startMedia() {
+    // 1. Get Camera/Mic
     try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            video: true, 
+            audio: { echoCancellation: true, noiseSuppression: true } 
+        });
         document.getElementById('local-video').srcObject = localStream;
+        
+        // 2. Start Logic
+        initSpeechRecognition();
+        socket.emit('join-room', roomId, myUsername, myLang);
+
     } catch (err) {
-        alert("Camera Access Denied! Please allow permissions.");
-        console.error(err);
+        console.error("Media Error:", err);
+        if (err.name === 'NotAllowedError') {
+            alert("⚠️ Permission Denied: Please click the lock icon 🔒 near the URL and allow Camera/Microphone.");
+        } else if (err.name === 'NotFoundError') {
+            alert("⚠️ No Camera/Mic found on this device.");
+        } else if (err.name === 'NotReadableError') {
+            alert("⚠️ Camera is being used by another app. Please close other apps.");
+        } else {
+            alert("Error accessing media: " + err.message);
+        }
     }
 }
 
-// Function to update languages dynamically during call
 function updateLanguages() {
     myLang = document.getElementById('in-call-my-lang').value;
     listenLang = document.getElementById('in-call-listen-lang').value;
     
-    // Restart recognition with new language
     if (recognition) {
-        recognition.stop();
-        // It will auto-restart in 'end' event with new lang
+        recognition.stop(); // Restart with new lang
     }
-    console.log(`Language updated: Speak: ${myLang}, Listen: ${listenLang}`);
+    toggleSettings(); // Close menu
 }
 
-// --- 2. MULTI-USER WEBRTC LOGIC ---
+// --- 2. WEBRTC (VIDEO) ---
 
-// New user joined: Create an offer to connect with them
 socket.on('user-connected', async (data) => {
-    console.log("User Joined:", data.username);
     const userId = data.userId;
     const pc = createPeerConnection(userId, data.username);
     peers[userId] = pc;
-
-    // Create Offer
+    
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-
-    socket.emit('offer', {
-        target: userId,
-        offer: offer
-    });
+    socket.emit('offer', { target: userId, offer: offer });
 });
 
-// User left: Cleanup
-socket.on('user-disconnected', (userId) => {
-    if (peers[userId]) {
-        peers[userId].close();
-        delete peers[userId];
-    }
-    const videoWrapper = document.getElementById(`wrapper-${userId}`);
-    if (videoWrapper) videoWrapper.remove();
-});
-
-// Receive Offer (from new joiner)
 socket.on('offer', async (data) => {
-    const userId = data.callerId;
-    const pc = createPeerConnection(userId, data.callerName);
-    peers[userId] = pc;
-
+    const pc = createPeerConnection(data.callerId, data.callerName);
+    peers[data.callerId] = pc;
+    
     await pc.setRemoteDescription(data.offer);
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-
-    socket.emit('answer', {
-        target: userId,
-        answer: answer
-    });
+    socket.emit('answer', { target: data.callerId, answer: answer });
 });
 
-// Receive Answer
 socket.on('answer', async (data) => {
-    const pc = peers[data.responderId];
-    if (pc) await pc.setRemoteDescription(data.answer);
+    if(peers[data.responderId]) await peers[data.responderId].setRemoteDescription(data.answer);
 });
 
-// Receive ICE Candidate
 socket.on('ice-candidate', async (data) => {
-    const pc = peers[data.senderId];
-    if (pc) await pc.addIceCandidate(data.candidate);
+    if(peers[data.senderId]) await peers[data.senderId].addIceCandidate(data.candidate);
 });
 
-// Helper: Create Connection
+socket.on('user-disconnected', (userId) => {
+    if(peers[userId]) peers[userId].close();
+    delete peers[userId];
+    const el = document.getElementById(`wrapper-${userId}`);
+    if(el) el.remove();
+});
+
 function createPeerConnection(userId, username) {
     const pc = new RTCPeerConnection(config);
-    
-    // Add local tracks
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
-    // Handle Remote Stream (Create new video element dynamically)
     pc.ontrack = (event) => {
-        // Only create if doesn't exist
         if (!document.getElementById(`wrapper-${userId}`)) {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'video-wrapper';
-            wrapper.id = `wrapper-${userId}`;
+            const div = document.createElement('div');
+            div.className = 'video-wrapper';
+            div.id = `wrapper-${userId}`;
             
-            const video = document.createElement('video');
-            video.srcObject = event.streams[0];
-            video.autoplay = true;
-            video.playsInline = true;
+            const vid = document.createElement('video');
+            vid.srcObject = event.streams[0];
+            vid.autoplay = true;
+            vid.playsInline = true;
             
-            // Duck audio volume so TTS is clearer
-            video.volume = 0.2; 
+            const lbl = document.createElement('span');
+            lbl.className = 'label';
+            lbl.innerText = username;
 
-            const label = document.createElement('span');
-            label.className = 'label';
-            label.innerText = username; // Use actual username
-
-            wrapper.appendChild(video);
-            wrapper.appendChild(label);
-            document.getElementById('video-grid').appendChild(wrapper);
+            div.appendChild(vid);
+            div.appendChild(lbl);
+            document.getElementById('video-grid').appendChild(div);
         }
     };
-
+    
     pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            socket.emit('ice-candidate', {
-                target: userId,
-                candidate: event.candidate
-            });
-        }
+        if(event.candidate) socket.emit('ice-candidate', { target: userId, candidate: event.candidate });
     };
 
     return pc;
 }
 
-// --- 3. TRANSLATION & SUBTITLES ---
+// --- 3. SPEECH & TRANSLATION ---
 
 function initSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return console.log("Speech not supported");
+    if (!SpeechRecognition) {
+        alert("⚠️ Your browser does not support Speech Recognition. Please use Google Chrome.");
+        return;
+    }
 
     recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = false;
     recognition.lang = myLang;
 
-    recognition.onstart = () => {
-        console.log("Voice recognition active: " + myLang);
-    };
-
     recognition.onresult = (event) => {
         const last = event.results.length - 1;
         const text = event.results[last][0].transcript;
         
-        console.log(`Sending: ${text} (${myLang})`);
+        console.log("Speaking:", text);
         socket.emit('speak-data', {
             roomId: roomId,
             text: text,
@@ -208,8 +183,8 @@ function initSpeechRecognition() {
     };
 
     recognition.onend = () => {
-        // Auto-restart if not muted (needed for dynamic lang change)
-        if (!isMuted) {
+        // Auto-restart to keep listening
+        if(!isMuted) {
             recognition.lang = myLang;
             recognition.start();
         }
@@ -222,47 +197,40 @@ socket.on('receive-speak-data', async (data) => {
     // 1. Translate
     const translated = await translateText(data.text, data.sourceLang, listenLang);
     
-    // 2. Show Caption (with Name)
-    if (subtitlesOn) {
-        const subBox = document.getElementById('subtitle-text');
-        subBox.innerText = `${data.username}: ${translated}`;
-        subBox.style.opacity = 1;
+    // 2. Display Subtitle
+    if(subtitlesOn) {
+        const sub = document.getElementById('subtitle-text');
+        sub.innerHTML = `<span style="color:#2ed573">${data.username}:</span> ${translated}`;
+        sub.style.opacity = 1;
         
-        // Clear after 6 seconds
-        setTimeout(() => { 
-            if(subBox.innerText.includes(translated)) subBox.style.opacity = 0; 
-        }, 6000);
+        // Hide after 5s
+        setTimeout(() => { if(sub.innerHTML.includes(translated)) sub.style.opacity = 0; }, 5000);
     }
 
-    // 3. Speak (TTS)
+    // 3. Speak
     speakText(translated, listenLang);
 });
 
-// Translation API (HTTPS Fixed)
 async function translateText(text, source, target) {
-    const srcCode = source.split('-')[0];
-    const targetCode = target.split('-')[0];
-    if (srcCode === targetCode) return text;
+    const src = source.split('-')[0];
+    const tgt = target.split('-')[0];
+    if(src === tgt) return text;
 
     try {
-        const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${srcCode}|${targetCode}`);
+        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${src}|${tgt}`;
+        const res = await fetch(url);
         const data = await res.json();
         return data.responseData.translatedText;
-    } catch (err) {
-        console.error("Trans Error", err);
+    } catch (e) {
+        console.error("Translation failed:", e);
         return text;
     }
 }
 
 function speakText(text, lang) {
-    // Important: Browser requires user interaction before playing audio. 
-    // Since user clicked 'Join', it should work.
-    
-    window.speechSynthesis.cancel(); // Stop previous
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
-    utterance.rate = 1;
-    window.speechSynthesis.speak(utterance);
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang;
+    window.speechSynthesis.speak(u);
 }
 
 // --- 4. CONTROLS ---
@@ -271,10 +239,9 @@ function toggleMute() {
     isMuted = !isMuted;
     localStream.getAudioTracks()[0].enabled = !isMuted;
     const btn = document.getElementById('mute-btn');
-    btn.innerText = isMuted ? "🔴 Unmute" : "🎤 Mute";
-    btn.style.background = isMuted ? "red" : "#007bff";
+    btn.innerHTML = isMuted ? "<span>🔴</span>" : "<span>🎤</span>";
+    btn.classList.toggle('active', !isMuted);
     
-    // Stop recognition to save resources/errors
     if(isMuted) recognition.stop();
     else recognition.start();
 }
@@ -283,15 +250,14 @@ function toggleVideo() {
     isVideoOff = !isVideoOff;
     localStream.getVideoTracks()[0].enabled = !isVideoOff;
     const btn = document.getElementById('video-btn');
-    btn.innerText = isVideoOff ? "📷 Start Video" : "📷 Stop Video";
-    btn.style.background = isVideoOff ? "red" : "#007bff";
+    btn.innerHTML = isVideoOff ? "<span>�</span>" : "<span>📷</span>";
+    btn.classList.toggle('danger', isVideoOff);
 }
 
 function toggleSubtitles() {
     subtitlesOn = !subtitlesOn;
     const btn = document.getElementById('cc-btn');
-    btn.innerText = subtitlesOn ? "📝 CC On" : "CC Off";
-    btn.style.background = subtitlesOn ? "#007bff" : "#555";
+    btn.classList.toggle('active', subtitlesOn);
 }
 
 function leaveCall() {
