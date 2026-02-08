@@ -104,7 +104,10 @@ function initSpeechRecognition() {
 
     recognition.onend = () => {
         console.log("🟡 Voice AI Stopped. Restarting...");
-        if(!isMuted) recognition.start();
+        // Only restart if the user hasn't explicitly muted themselves
+        if(!isMuted) {
+            try { recognition.start(); } catch(e) { console.warn("Restart failed/ignored"); }
+        }
     };
 
     recognition.onresult = (event) => {
@@ -122,7 +125,7 @@ function initSpeechRecognition() {
         });
     };
 
-    recognition.start();
+    try { recognition.start(); } catch(e) { console.warn("Start failed/ignored"); }
 }
 
 // --- 3. RECEIVING & TRANSLATING ---
@@ -253,13 +256,29 @@ function createPeer(userId, username) {
 
 function toggleMute() {
     isMuted = !isMuted;
-    localStream.getAudioTracks()[0].enabled = !isMuted;
+    
+    // 1. Mute/Unmute the actual Microphone Audio Track
+    if (localStream && localStream.getAudioTracks().length > 0) {
+        localStream.getAudioTracks()[0].enabled = !isMuted;
+    }
+
+    // 2. Update Button UI
     const btn = document.getElementById('mute-btn');
     btn.innerHTML = isMuted ? "<span>🔴</span>" : "<span>🎤</span>";
     btn.classList.toggle('active', !isMuted);
     
-    if(isMuted) recognition.stop();
-    else recognition.start();
+    // 3. Handle Speech Recognition Safely (FIXED)
+    if (isMuted) {
+        // If muted, stop listening
+        try { recognition.stop(); } catch(e) { console.warn("Already stopped"); }
+    } else {
+        // If unmuted, start listening ONLY if not already started
+        try { 
+            recognition.start(); 
+        } catch(e) { 
+            console.warn("Recognition already active, ignoring start request."); 
+        }
+    }
 }
 
 function toggleVideo() {
